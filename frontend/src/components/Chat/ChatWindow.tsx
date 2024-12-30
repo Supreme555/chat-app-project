@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSocket } from '@/hooks/useSocket';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth.tsx';
 import { Message } from '@/types/message';
 import { User } from '@/types/user';
 import axios from 'axios';
@@ -17,6 +17,7 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
   const { user, token } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Загрузка истории сообщений
@@ -43,56 +44,87 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
     fetchMessages();
   }, [selectedUser, token]);
 
-  // Подписка на новые сообщения
+  // Подписка на новые сообщения через сокет
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('newMessage', (message: Message) => {
+    const handleNewMessage = (message: Message) => {
       // Добавляем сообщение только если оно относится к текущему чату
       if (
         (message.sender.id === user?.id && message.receiver.id === selectedUser?.id) ||
         (message.sender.id === selectedUser?.id && message.receiver.id === user?.id)
       ) {
         setMessages((prev) => [...prev, message]);
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }
-    });
+    };
+
+    socket.on('newMessage', handleNewMessage);
 
     return () => {
-      socket.off('newMessage');
+      socket.off('newMessage', handleNewMessage);
     };
   }, [socket, user, selectedUser]);
 
-  // Автопрокрутка к последнему сообщению
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!socket || !newMessage.trim() || !selectedUser) return;
+    if (!socket || !newMessage.trim() || !selectedUser || isSending) return;
 
+    setIsSending(true);
     try {
-      await axios.post(`${API_URL}/api/chat/messages`, {
+      // Создаем временное сообщение для мгновенного отображения
+      const tempMessage = {
+        id: Date.now(), // временный ID
         text: newMessage,
-        receiverId: selectedUser.id
-      }, {
-        headers: { Authorization: token }
-      });
+        sender: user,
+        receiver: selectedUser,
+        timestamp: new Date().toISOString(),
+      };
 
+      // Добавляем сообщение в локальный state
+      setMessages((prev) => [...prev, tempMessage]);
       setNewMessage('');
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+      // Отправляем сообщение на сервер
+      const response = await axios.post(
+        `${API_URL}/api/chat/messages`,
+        {
+          text: newMessage,
+          receiverId: selectedUser.id
+        },
+        {
+          headers: { Authorization: token }
+        }
+      );
+
+      // Заменяем временное сообщение на реальное
+      setMessages((prev) => 
+        prev.map(msg => 
+          msg.id === tempMessage.id ? response.data : msg
+        )
+      );
+
+      // Эмитим событие через сокет
+      socket.emit('sendMessage', response.data);
     } catch (error) {
       console.error('Failed to send message:', error);
       toast.error('Failed to send message');
+      // Удаляем временное сообщение в случае ошибки
+      setMessages((prev) => prev.filter(msg => msg.id !== Date.now()));
+    } finally {
+      setIsSending(false);
     }
   };
 
+  // Индикатор состояния соединения
   useEffect(() => {
     const handleOffline = () => {
-      // Показать уведомление о потере соединения
+      toast.error('You are offline. Messages will be sent when connection is restored.');
     };
 
     const handleOnline = () => {
-      // Переподключиться к чату
+      toast.success('Connection restored!');
     };
 
     window.addEventListener('offline', handleOffline);
@@ -113,56 +145,108 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen bg-gray-100">
       {/* Chat Header */}
-      <div className="bg-white border-b p-4">
-        <h2 className="font-semibold">{selectedUser.username}</h2>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${
-              message.sender.id === user?.id ? 'justify-end' : 'justify-start'
-            }`}
-          >
-            <div
-              className={`max-w-xs px-4 py-2 rounded-lg ${
-                message.sender.id === user?.id
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white'
-              }`}
-            >
-              <p className="text-sm">{message.text}</p>
-              <p className="text-xs opacity-75 mt-1">
-                {new Date(message.timestamp).toLocaleTimeString()}
+      <div className="bg-white shadow-sm z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center">
+                <span className="text-white font-medium">
+                  {selectedUser?.username.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-lg font-medium text-gray-900">
+                {selectedUser?.username}
+              </h2>
+              <p className="text-sm text-gray-500">
+                {selectedUser?.email}
               </p>
             </div>
           </div>
-        ))}
-        <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* Messages Container */}
+      <div className="flex-1 overflow-hidden bg-gray-50">
+        <div className="h-full overflow-y-auto px-4 py-6">
+          <div className="space-y-6">
+            {messages.map((message, index) => {
+              const isLastMessage = index === messages.length - 1;
+              const isSentByMe = message.sender.id === user?.id;
+              const showAvatar = !isSentByMe;
+
+              return (
+                <div
+                  key={message.id}
+                  className={`flex items-end space-x-2 ${
+                    isSentByMe ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  {showAvatar && (
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                        <span className="text-white text-sm">
+                          {message.sender.username.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <div
+                    className={`flex flex-col space-y-1 ${
+                      isSentByMe ? 'items-end' : 'items-start'
+                    }`}
+                  >
+                    <div
+                      className={`rounded-2xl px-4 py-2 max-w-sm break-words ${
+                        isSentByMe
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-white shadow-sm'
+                      }`}
+                    >
+                      <p className="text-sm">{message.text}</p>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {new Date(message.timestamp).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
       </div>
 
       {/* Message Input */}
-      <form onSubmit={sendMessage} className="p-4 bg-white border-t">
-        <div className="flex space-x-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Type a message..."
-          />
-          <button
-            type="submit"
-            className="px-6 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Send
-          </button>
-        </div>
-      </form>
+      <div className="bg-white border-t border-gray-200 px-4 py-4">
+        <form onSubmit={sendMessage} className="max-w-7xl mx-auto">
+          <div className="flex items-center space-x-3">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              disabled={isSending}
+              className="message-input"
+              placeholder="Type your message..."
+            />
+            <button
+              type="submit"
+              disabled={isSending}
+              className={`send-button ${
+                isSending ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {isSending ? 'Sending...' : 'Send'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }; 
