@@ -76,4 +76,53 @@
 .messages-container {
   @apply flex-1 overflow-y-auto px-4 py-6 space-y-6;
   scroll-behavior: smooth;
+}
+
+/* Медиа-запросы для мобильных устройств */
+@media (max-width: 768px) {
+  .chat-container {
+    height: calc(100vh - 4rem);
+    height: calc(var(--vh, 1vh) * 100 - 4rem);
+  }
+  
+  .message-input {
+    @apply px-3 py-2;
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .send-button {
+    @apply px-4 py-2;
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  /* Предотвращаем масштабирование на iOS */
+  input[type="text"],
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Улучшаем прокрутку на iOS */
+  .messages-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Исправление высоты на мобильных устройствах */
+@supports (-webkit-touch-callout: none) {
+  .chat-container {
+    height: -webkit-fill-available;
+  }
+}
+
+/* Улучшаем доступность */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 } 

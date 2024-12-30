@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth.tsx';
 import { Message } from '@/types/message';
@@ -44,27 +44,30 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
     fetchMessages();
   }, [selectedUser, token]);
 
-  // Подписка на новые сообщения через сокет
+  // Автопрокрутка при новых сообщениях
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Исправим обработку сообщений
+  const handleNewMessage = useCallback((message: Message) => {
+    if (
+      (message.sender.id === user?.id && message.receiver.id === selectedUser?.id) ||
+      (message.sender.id === selectedUser?.id && message.receiver.id === user?.id)
+    ) {
+      setMessages(prev => [...prev, message]);
+    }
+  }, [user?.id, selectedUser?.id]);
+
   useEffect(() => {
     if (!socket) return;
-
-    const handleNewMessage = (message: Message) => {
-      // Добавляем сообщение только если оно относится к текущему чату
-      if (
-        (message.sender.id === user?.id && message.receiver.id === selectedUser?.id) ||
-        (message.sender.id === selectedUser?.id && message.receiver.id === user?.id)
-      ) {
-        setMessages((prev) => [...prev, message]);
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }
-    };
-
     socket.on('newMessage', handleNewMessage);
-
     return () => {
       socket.off('newMessage', handleNewMessage);
     };
-  }, [socket, user, selectedUser]);
+  }, [socket, handleNewMessage]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,23 +148,23 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="flex flex-col h-full">
       {/* Chat Header */}
       <div className="bg-white shadow-sm z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="px-4 py-3 md:py-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center">
-                <span className="text-white font-medium">
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-indigo-500 flex items-center justify-center">
+                <span className="text-white text-sm md:font-medium">
                   {selectedUser?.username.charAt(0).toUpperCase()}
                 </span>
               </div>
             </div>
-            <div className="ml-3">
-              <h2 className="text-lg font-medium text-gray-900">
+            <div className="ml-3 flex-1">
+              <h2 className="text-base md:text-lg font-medium text-gray-900 truncate">
                 {selectedUser?.username}
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs md:text-sm text-gray-500 truncate">
                 {selectedUser?.email}
               </p>
             </div>
@@ -171,10 +174,9 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
 
       {/* Messages Container */}
       <div className="flex-1 overflow-hidden bg-gray-50">
-        <div className="h-full overflow-y-auto px-4 py-6">
-          <div className="space-y-6">
+        <div className="h-full overflow-y-auto px-3 md:px-4 py-4 md:py-6 smooth-scroll">
+          <div className="space-y-4 md:space-y-6">
             {messages.map((message, index) => {
-              const isLastMessage = index === messages.length - 1;
               const isSentByMe = message.sender.id === user?.id;
               const showAvatar = !isSentByMe;
 
@@ -186,9 +188,9 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
                   }`}
                 >
                   {showAvatar && (
-                    <div className="flex-shrink-0">
-                      <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
-                        <span className="text-white text-sm">
+                    <div className="flex-shrink-0 hidden md:block">
+                      <div className="h-6 w-6 md:h-8 md:w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                        <span className="text-white text-xs md:text-sm">
                           {message.sender.username.charAt(0).toUpperCase()}
                         </span>
                       </div>
@@ -200,7 +202,7 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
                     }`}
                   >
                     <div
-                      className={`rounded-2xl px-4 py-2 max-w-sm break-words ${
+                      className={`rounded-2xl px-3 md:px-4 py-1.5 md:py-2 max-w-[75vw] md:max-w-sm break-words ${
                         isSentByMe
                           ? 'bg-indigo-600 text-white'
                           : 'bg-white shadow-sm'
@@ -208,7 +210,7 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
                     >
                       <p className="text-sm">{message.text}</p>
                     </div>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-[10px] md:text-xs text-gray-500">
                       {new Date(message.timestamp).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -224,21 +226,21 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
       </div>
 
       {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 px-4 py-4">
+      <div className="bg-white border-t border-gray-200 p-2 md:p-4">
         <form onSubmit={sendMessage} className="max-w-7xl mx-auto">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 md:space-x-3">
             <input
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               disabled={isSending}
-              className="message-input"
+              className="message-input text-sm md:text-base"
               placeholder="Type your message..."
             />
             <button
               type="submit"
               disabled={isSending}
-              className={`send-button ${
+              className={`send-button text-sm md:text-base ${
                 isSending ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >

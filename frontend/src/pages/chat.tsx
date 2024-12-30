@@ -16,6 +16,19 @@ export default function Chat() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -30,21 +43,14 @@ export default function Chat() {
         withCredentials: true
       });
       
-      console.log('Auth Token:', authToken);
-      console.log('Users response:', response.data);
-      
       if (currentUser) {
         const filteredUsers = response.data.filter(
           (user: User) => user.id !== currentUser.id
         );
         setUsers(filteredUsers);
-      } else {
-        setUsers(response.data);
       }
     } catch (error) {
       console.error('Failed to fetch users:', error);
-      console.log('Error config:', error.config);
-      console.log('Error response:', error.response);
       toast.error('Failed to load users');
     } finally {
       setLoading(false);
@@ -58,22 +64,59 @@ export default function Chat() {
     }
     
     if (token && currentUser) {
-      console.log('Current token:', token);
       fetchUsers();
     }
   }, [isAuthenticated, token, currentUser]);
+
+  const handleBackToUsers = () => {
+    setSelectedUser(null);
+  };
 
   if (!isAuthenticated) {
     return null;
   }
 
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-gray-500">Loading...</div>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
-      <div className="h-full flex">
-        {loading ? (
-          <div className="w-full flex items-center justify-center">
-            <div className="text-gray-500">Loading users...</div>
-          </div>
+      <div className="h-[calc(100vh-4rem)] flex flex-col md:flex-row">
+        {isMobile ? (
+          selectedUser ? (
+            <div className="flex flex-col h-full">
+              <div className="bg-white px-4 py-2 flex items-center border-b">
+                <button 
+                  onClick={handleBackToUsers}
+                  className="mr-2 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div>
+                  <div className="font-medium">{selectedUser.username}</div>
+                  <div className="text-sm text-gray-500">{selectedUser.email}</div>
+                </div>
+              </div>
+              <div className="flex-1">
+                <ChatWindow selectedUser={selectedUser} />
+              </div>
+            </div>
+          ) : (
+            <UsersList
+              users={users}
+              selectedUser={selectedUser}
+              onSelectUser={setSelectedUser}
+            />
+          )
         ) : (
           <>
             <UsersList
@@ -82,7 +125,13 @@ export default function Chat() {
               onSelectUser={setSelectedUser}
             />
             <div className="flex-1">
-              <ChatWindow selectedUser={selectedUser} />
+              {selectedUser ? (
+                <ChatWindow selectedUser={selectedUser} />
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gray-50">
+                  <p className="text-gray-500">Select a user to start chatting</p>
+                </div>
+              )}
             </div>
           </>
         )}
