@@ -8,6 +8,7 @@ interface AuthContextType {
   user: any;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, username: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -20,7 +21,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
 
-  // Проверяем авторизацию при загрузке
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
@@ -29,8 +29,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
       setIsAuthenticated(true);
-    } else if (!router.pathname.includes('/auth')) {
-      router.push('/auth/login');
     }
   }, []);
 
@@ -47,7 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userData);
       setIsAuthenticated(true);
       
-      // Сохраняем в localStorage
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(userData));
       
@@ -63,15 +60,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setIsAuthenticated(false);
     
-    // Очищаем localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     
     router.push('/auth/login');
   };
 
+  const register = async (email: string, password: string, username: string) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/register`, {
+        email,
+        password,
+        username,
+      });
+
+      const { token: newToken, user: userData } = response.data;
+      
+      setToken(newToken);
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      localStorage.setItem('token', newToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      router.push('/chat');
+    } catch (error) {
+      console.error('Registration failed:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      token, 
+      login, 
+      register, 
+      logout, 
+      isAuthenticated 
+    }}>
       {children}
     </AuthContext.Provider>
   );
