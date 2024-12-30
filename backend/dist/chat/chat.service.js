@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatService = void 0;
 const common_1 = require("@nestjs/common");
@@ -20,35 +19,36 @@ const typeorm_2 = require("typeorm");
 const message_entity_1 = require("./entities/message.entity");
 const users_service_1 = require("../users/users.service");
 let ChatService = class ChatService {
-    constructor(messagesRepository, usersService) {
-        this.messagesRepository = messagesRepository;
+    constructor(messageRepository, usersService) {
+        this.messageRepository = messageRepository;
         this.usersService = usersService;
     }
-    async createMessage(createMessageDto, senderId) {
+    async createMessage(senderId, createMessageDto) {
         const sender = await this.usersService.findById(senderId);
         const receiver = await this.usersService.findById(createMessageDto.receiverId);
-        const message = this.messagesRepository.create({
+        const message = this.messageRepository.create({
             text: createMessageDto.text,
             sender,
             receiver,
         });
-        return this.messagesRepository.save(message);
+        return this.messageRepository.save(message);
     }
-    async getMessageHistory(userId) {
-        return this.messagesRepository.find({
-            where: [
-                { sender: { id: userId } },
-                { receiver: { id: userId } },
-            ],
-            relations: ['sender', 'receiver'],
-            order: { timestamp: 'DESC' },
-        });
+    async getMessages(userId1, userId2) {
+        return this.messageRepository
+            .createQueryBuilder('message')
+            .leftJoinAndSelect('message.sender', 'sender')
+            .leftJoinAndSelect('message.receiver', 'receiver')
+            .where('(message.senderId = :userId1 AND message.receiverId = :userId2) OR ' +
+            '(message.senderId = :userId2 AND message.receiverId = :userId1)', { userId1, userId2 })
+            .orderBy('message.timestamp', 'ASC')
+            .getMany();
     }
 };
 exports.ChatService = ChatService;
 exports.ChatService = ChatService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(message_entity_1.Message)),
-    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, users_service_1.UsersService])
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        users_service_1.UsersService])
 ], ChatService);
 //# sourceMappingURL=chat.service.js.map

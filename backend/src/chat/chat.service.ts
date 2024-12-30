@@ -9,31 +9,34 @@ import { UsersService } from '../users/users.service';
 export class ChatService {
   constructor(
     @InjectRepository(Message)
-    private messagesRepository: Repository<Message>,
+    private messageRepository: Repository<Message>,
     private usersService: UsersService,
   ) {}
 
-  async createMessage(createMessageDto: CreateMessageDto, senderId: number): Promise<Message> {
+  async createMessage(senderId: number, createMessageDto: CreateMessageDto) {
     const sender = await this.usersService.findById(senderId);
     const receiver = await this.usersService.findById(createMessageDto.receiverId);
 
-    const message = this.messagesRepository.create({
+    const message = this.messageRepository.create({
       text: createMessageDto.text,
       sender,
       receiver,
     });
 
-    return this.messagesRepository.save(message);
+    return this.messageRepository.save(message);
   }
 
-  async getMessageHistory(userId: number): Promise<Message[]> {
-    return this.messagesRepository.find({
-      where: [
-        { sender: { id: userId } },
-        { receiver: { id: userId } },
-      ],
-      relations: ['sender', 'receiver'],
-      order: { timestamp: 'DESC' },
-    });
+  async getMessages(userId1: number, userId2: number) {
+    return this.messageRepository
+      .createQueryBuilder('message')
+      .leftJoinAndSelect('message.sender', 'sender')
+      .leftJoinAndSelect('message.receiver', 'receiver')
+      .where(
+        '(message.senderId = :userId1 AND message.receiverId = :userId2) OR ' +
+        '(message.senderId = :userId2 AND message.receiverId = :userId1)',
+        { userId1, userId2 }
+      )
+      .orderBy('message.timestamp', 'ASC')
+      .getMany();
   }
 } 

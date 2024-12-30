@@ -24,17 +24,19 @@ __decorate([
     __metadata("design:type", String)
 ], Message.prototype, "text", void 0);
 __decorate([
-    (0, typeorm_1.CreateDateColumn)(),
-    __metadata("design:type", Date)
-], Message.prototype, "timestamp", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, user => user.sentMessages),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { eager: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'senderId' }),
     __metadata("design:type", user_entity_1.User)
 ], Message.prototype, "sender", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, user => user.receivedMessages),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { eager: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'receiverId' }),
     __metadata("design:type", user_entity_1.User)
 ], Message.prototype, "receiver", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)(),
+    __metadata("design:type", Date)
+], Message.prototype, "timestamp", void 0);
 exports.Message = Message = __decorate([
     (0, typeorm_1.Entity)('messages')
 ], Message);

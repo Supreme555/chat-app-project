@@ -8,41 +8,43 @@ import {
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { JwtService } from '@nestjs/jwt';
+import { UseGuards } from '@nestjs/common';
+import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: 'http://localhost:3000',
+    credentials: true,
   },
 })
+@UseGuards(WsJwtGuard)
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  constructor(
-    private readonly chatService: ChatService,
-    private readonly jwtService: JwtService,
-  ) {}
+  constructor(private readonly chatService: ChatService) {}
 
   async handleConnection(client: Socket) {
-    try {
-      const token = client.handshake.headers.authorization?.split(' ')[1];
-      const payload = this.jwtService.verify(token);
-      client.data.userId = payload.id;
-      client.join(`user_${payload.id}`);
-    } catch (error) {
-      client.disconnect();
-    }
+    console.log(`Client connected: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    client.leave(`user_${client.data.userId}`);
+    console.log(`Client disconnected: ${client.id}`);
   }
 
   @SubscribeMessage('sendMessage')
   async handleMessage(client: Socket, payload: CreateMessageDto) {
-    const message = await this.chatService.createMessage(payload, client.data.userId);
-    this.server.to(`user_${payload.receiverId}`).emit('newMessage', message);
-    return message;
+    try {
+      // Создаем сообщение, передавая ID отправителя первым аргументом
+      const message = await this.chatService.createMessage(client.data.userId, payload);
+      
+      // Отправляем сообщение обоим участникам чата
+      this.server.emit('newMessage', message);
+      
+      return message;
+    } catch (error) {
+      console.error('Error handling message:', error);
+      client.emit('error', { message: 'Failed to send message' });
+    }
   }
 } 
