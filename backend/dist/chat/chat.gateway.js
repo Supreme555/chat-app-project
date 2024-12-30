@@ -15,7 +15,7 @@ const socket_io_1 = require("socket.io");
 const chat_service_1 = require("./chat.service");
 const create_message_dto_1 = require("./dto/create-message.dto");
 const common_1 = require("@nestjs/common");
-const ws_jwt_guard_1 = require("../auth/guards/ws-jwt.guard");
+const auth_1 = require("@/auth");
 let ChatGateway = class ChatGateway {
     constructor(chatService) {
         this.chatService = chatService;
@@ -56,7 +56,7 @@ exports.ChatGateway = ChatGateway = __decorate([
             credentials: true,
         },
     }),
-    (0, common_1.UseGuards)(ws_jwt_guard_1.WsJwtGuard),
+    (0, common_1.UseGuards)(auth_1.WsJwtGuard),
     __metadata("design:paramtypes", [chat_service_1.ChatService])
 ], ChatGateway);
 //# sourceMappingURL=chat.gateway.js.map

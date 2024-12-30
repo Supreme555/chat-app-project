@@ -1,13 +1,9 @@
+import { User } from './auth';
+
 export interface Message {
-  id: number;
+  id: number | string;
   text: string;
-  sender: {
-    id: number;
-    username: string;
-  };
-  receiver: {
-    id: number;
-    username: string;
-  };
+  sender: User;
+  receiver: User;
   timestamp: string;
 } 

@@ -9,7 +9,7 @@ import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UseGuards } from '@nestjs/common';
-import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
+import { WsJwtGuard } from '@/auth';
 
 @WebSocketGateway({
   cors: {

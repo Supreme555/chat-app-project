@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth.tsx';
+import { useAuth } from '@/hooks/useAuth';
 
 export function Navbar() {
   const { isAuthenticated, logout, user } = useAuth();

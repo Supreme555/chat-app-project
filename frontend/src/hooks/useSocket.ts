@@ -11,35 +11,40 @@ export const useSocket = () => {
   const { token } = useAuth();
 
   useEffect(() => {
-    if (!token) return;
+    if (typeof window === 'undefined' || !token) return;
 
-    const newSocket = io(API_URL, {
-      auth: { token },
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    try {
+      const newSocket = io(API_URL, {
+        auth: { token },
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
 
-    newSocket.on('connect', () => {
-      setIsConnected(true);
-      toast.success('Connected to chat');
-    });
+      newSocket.on('connect', () => {
+        setIsConnected(true);
+        toast.success('Connected to chat');
+      });
 
-    newSocket.on('disconnect', () => {
-      setIsConnected(false);
-      toast.error('Disconnected from chat');
-    });
+      newSocket.on('disconnect', () => {
+        setIsConnected(false);
+        toast.error('Disconnected from chat');
+      });
 
-    newSocket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
-      toast.error('Connection error. Trying to reconnect...');
-    });
+      newSocket.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+        toast.error('Connection error. Trying to reconnect...');
+      });
 
-    setSocket(newSocket);
+      setSocket(newSocket);
 
-    return () => {
-      newSocket.close();
-    };
+      return () => {
+        newSocket.close();
+      };
+    } catch (error) {
+      console.error('Socket initialization error:', error);
+      toast.error('Failed to initialize chat connection');
+    }
   }, [token]);
 
   return { socket, isConnected };

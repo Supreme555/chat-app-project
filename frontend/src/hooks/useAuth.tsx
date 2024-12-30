@@ -1,36 +1,41 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/router';
+import { AuthContextType, User } from '@/types/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-interface AuthContextType {
-  user: any;
-  token: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, username: string) => Promise<void>;
-  logout: () => void;
-  isAuthenticated: boolean;
-  loading: boolean;
-}
-
+// Создаем контекст с типизацией
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
+    try {
+      const savedToken = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
+      
+      if (savedToken && savedUser) {
+        setToken(savedToken);
+        const parsedUser = JSON.parse(savedUser);
+        // Проверяем, что данные пользователя валидны
+        if (parsedUser?.id && parsedUser?.username && parsedUser?.email) {
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+        } else {
+          throw new Error('Invalid user data');
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring auth state:', error);
+      // Очищаем некорректные данные
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
   }, []);
 
@@ -99,18 +104,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      login, 
-      register, 
-      logout, 
-      isAuthenticated, 
-      loading 
-    }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        token, 
+        login, 
+        register, 
+        logout, 
+        isAuthenticated,
+        loading 
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => useContext(AuthContext); 
+// Хук для использования контекста
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}; 
