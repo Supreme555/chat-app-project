@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
@@ -44,12 +45,12 @@ let ChatGateway = class ChatGateway {
 exports.ChatGateway = ChatGateway;
 __decorate([
     (0, websockets_1.WebSocketServer)(),
-    __metadata("design:type", socket_io_1.Server)
+    __metadata("design:type", typeof (_b = typeof socket_io_1.Server !== "undefined" && socket_io_1.Server) === "function" ? _b : Object)
 ], ChatGateway.prototype, "server", void 0);
 __decorate([
     (0, websockets_1.SubscribeMessage)('sendMessage'),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [socket_io_1.Socket, create_message_dto_1.CreateMessageDto]),
+    __metadata("design:paramtypes", [typeof (_c = typeof socket_io_1.Socket !== "undefined" && socket_io_1.Socket) === "function" ? _c : Object, create_message_dto_1.CreateMessageDto]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleMessage", null);
 exports.ChatGateway = ChatGateway = __decorate([
@@ -58,7 +59,6 @@ exports.ChatGateway = ChatGateway = __decorate([
             origin: '*',
         },
     }),
-    __metadata("design:paramtypes", [chat_service_1.ChatService,
-        jwt_1.JwtService])
+    __metadata("design:paramtypes", [chat_service_1.ChatService, typeof (_a = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _a : Object])
 ], ChatGateway);
 //# sourceMappingURL=chat.gateway.js.map
