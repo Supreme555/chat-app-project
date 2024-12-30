@@ -11,6 +11,7 @@ interface AuthContextType {
   register: (email: string, password: string, username: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+    setLoading(true);
     try {
       const response = await axios.post(`${API_URL}/api/auth/login`, {
         email,
@@ -52,6 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -67,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (email: string, password: string, username: string) => {
+    setLoading(true);
     try {
       const response = await axios.post(`${API_URL}/api/auth/register`, {
         email,
@@ -87,6 +93,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -97,7 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login, 
       register, 
       logout, 
-      isAuthenticated 
+      isAuthenticated, 
+      loading 
     }}>
       {children}
     </AuthContext.Provider>

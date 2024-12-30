@@ -9,18 +9,49 @@ export default function Register() {
   const [username, setUsername] = useState('');
   const { register, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({
+    username: '',
+    email: '',
+    password: '',
+  });
 
   if (isAuthenticated) {
     router.push('/chat');
     return null;
   }
 
+  const validateForm = () => {
+    const newErrors = {
+      username: '',
+      email: '',
+      password: '',
+    };
+
+    if (username.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
+    }
+
+    if (!email.includes('@')) {
+      newErrors.email = 'Please enter a valid email';
+    }
+
+    if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    setErrors(newErrors);
+    return !Object.values(newErrors).some(error => error !== '');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+    setError('');
     try {
       await register(email, password, username);
-    } catch (error) {
-      console.error('Registration error:', error);
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Registration failed');
     }
   };
 

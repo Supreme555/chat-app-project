@@ -86,6 +86,24 @@ export const ChatWindow = ({ selectedUser }: ChatWindowProps) => {
     }
   };
 
+  useEffect(() => {
+    const handleOffline = () => {
+      // Показать уведомление о потере соединения
+    };
+
+    const handleOnline = () => {
+      // Переподключиться к чату
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
   if (!selectedUser) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50">

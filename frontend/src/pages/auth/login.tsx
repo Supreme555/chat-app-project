@@ -8,6 +8,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Если пользователь уже авторизован, перенаправляем на чат
   if (isAuthenticated) {
@@ -17,10 +19,15 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
     try {
       await login(email, password);
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Login failed');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -59,12 +66,18 @@ export default function Login() {
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={isSubmitting}
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              Sign in
+              {isSubmitting ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>
+        {error && (
+          <div className="text-red-500 text-sm text-center">
+            {error}
+          </div>
+        )}
         <div className="text-center">
           <Link 
             href="/auth/register"
